@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { currentUser, db } = require('../../../../lib/cloud-auth');
+const { currentUser, db } = require('../../../lib/cloud-auth');
 
 function parseBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
