@@ -1,10 +1,9 @@
 # Shop Inventory
 
-A local-first, offline-capable audit app for the 1,534-item garage shop checklist.
-No build step for the frontend — static files, works with zero setup. An
-optional Postgres-backed sync API (a handful of serverless functions under
-`/api`) can be turned on later for in-app checklist editing and cross-device
-sync; see [Cross-device sync](#cross-device-sync).
+A cloud-first, authenticated audit app for the 1,534-item garage shop checklist.
+The server is authoritative for checklist content and audit marks. The browser may
+cache static assets and preferences, but inventory edits require a successful API
+write. The optional local-only test mode exists only for the headless smoke suite.
 
 ## Deploy to Vercel
 
@@ -120,6 +119,9 @@ tests/smoke.js          headless test suite
 ```bash
 npm install
 npm test
+npm run migrate       # DATABASE_URL required
+npm run seed-db       # initial checklist seed
+npm run backup-db     # pg_dump backup; DATABASE_URL required
 ```
 
 Covers status cycling, bulk marking, filters, search, the expander, quantity
