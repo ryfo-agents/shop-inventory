@@ -6,6 +6,7 @@
   "scripts": {
     "start": "python3 -m http.server 8899",
     "test": "node tests/smoke.js",
+    "test:greenfield": "node tests/greenfield.js",
     "seed-db": "node scripts/seed-db.js",
     "migrate": "node scripts/migrate.js",
     "backup-db": "node scripts/backup-db.js"

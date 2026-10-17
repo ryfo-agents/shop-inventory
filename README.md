@@ -114,6 +114,14 @@ scripts/make_icons.py        regenerates the icons
 tests/smoke.js          headless test suite
 ```
 
+## Greenfield UX branch
+
+The `greenfield-ux` branch contains a redesigned client under `greenfield/`. It keeps the existing Vercel/Neon API and introduces a calmer task-first interface, explicit save feedback, accessible status controls, mobile layout, a project design language, and an agent-oriented UX evaluation plan.
+
+- Open locally with `npm start`, then visit `/greenfield/`.
+- Run `npm run test:greenfield` for the greenfield auth-shell test.
+- Read `DESIGN_SYSTEM.md`, `UX_EVALUATION.md`, and `GREENFIELD_RESOURCES.md` before extending the client.
+
 ## Tests
 
 ```bash
