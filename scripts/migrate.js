@@ -14,7 +14,7 @@ async function main() {
     if (done.has(file)) continue;
     const text = fs.readFileSync(path.join(dir, file), 'utf8');
     const statements = text.split(';').map(s => s.trim()).filter(Boolean);
-    for (const statement of statements) await sql.unsafe(statement);
+    for (const statement of statements) await sql.query(statement);
     await sql`INSERT INTO schema_migrations (version) VALUES (${file})`;
     console.log('applied', file);
   }
