@@ -1,13 +1,11 @@
-/* Cache-first app shell so the audit works with no signal in the garage. */
-/* Bump on every shipped change to index.html / app.js / styles.css, or
-   returning devices keep booting the previous shell from cache.
-   v4: polished cloud authentication form. */
-var CACHE = 'shop-inv-v4';
+/* Cache-first app shell for the greenfield audit experience. */
+/* v5: promote the greenfield task-first client to the production root. */
+var CACHE = 'shop-inv-v5';
 var CORE = [
   './',
   'index.html',
-  'styles.css',
-  'app.js',
+  'greenfield/styles.css',
+  'greenfield/app.js',
   'data/checklist.md',
   'manifest.webmanifest',
   'icons/icon-192.png',

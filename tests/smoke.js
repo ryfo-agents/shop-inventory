@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = './';
 const md = fs.readFileSync(path + 'data/checklist.md', 'utf8');
 
-const dom = new JSDOM(fs.readFileSync(path + 'index.html', 'utf8'), {
+const dom = new JSDOM(fs.readFileSync(path + 'tests/legacy-index.html', 'utf8'), {
   runScripts: 'outside-only', url: 'https://example.test/', pretendToBeVisual: true
 });
 const w = dom.window;

@@ -116,7 +116,7 @@ tests/smoke.js          headless test suite
 
 ## Greenfield UX branch
 
-The `greenfield-ux` branch contains a redesigned client under `greenfield/`. It keeps the existing Vercel/Neon API and introduces a calmer task-first interface, explicit save feedback, accessible status controls, mobile layout, a project design language, and an agent-oriented UX evaluation plan.
+The `greenfield-ux` branch now promotes the redesigned client to the root `index.html`; the original client remains available in its existing source files for comparison and regression testing.
 
 - Open locally with `npm start`, then visit `/greenfield/`.
 - Run `npm run test:greenfield` for the greenfield auth-shell test.
