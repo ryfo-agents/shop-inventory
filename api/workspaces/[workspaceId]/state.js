@@ -39,7 +39,9 @@ async function bulkInsert(sql, table, columns, rows) {
 }
 
 async function bootstrapWorkspace(workspaceId, actorId) {
+  console.log('workspace bootstrap', workspaceId, { sections: checklist.sections && checklist.sections.length });
   const existing = await db()`SELECT id FROM sections WHERE workspace_id = ${workspaceId} LIMIT 1`;
+  console.log('workspace bootstrap existing', workspaceId, existing.length);
   if (existing.length) return;
   const sql = db();
   const now = new Date().toISOString();
