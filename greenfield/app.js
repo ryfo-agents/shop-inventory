@@ -101,7 +101,7 @@
     var old = model.marks[itemId]; model.marks[itemId] = { status: next, updatedAt: new Date().toISOString() }; model.saving[itemId] = true; render(); announce(next === 'unknown' ? 'Marked as not audited.' : 'Marked as ' + STATUS_LABEL[next] + '. Saving.');
     api('/api/workspaces/' + encodeURIComponent(model.workspace.id) + '/marks/' + encodeURIComponent(itemId), { method: 'PUT', body: JSON.stringify({ status: next }) }).then(function (result) { model.saving[itemId] = false; if (result.mark) model.marks[itemId] = { status: result.mark.status || 'unknown', q: result.mark.q, c: result.mark.c, updatedAt: result.mark.updated_at }; render(); announce('Saved.'); }).catch(function () { model.marks[itemId] = old || { status: 'unknown' }; model.saving[itemId] = false; render(); announce('Could not save that change. Try again.'); });
   }
-  function cycle(itemId) { var current = itemStatus(itemId); saveMark(itemId, STATUS[current] === undefined ? 'have' : STATUS[(STATUS.indexOf(current) + 1) % STATUS.length]); }
+  function cycle(itemId) { var current = itemStatus(itemId); var index = STATUS.indexOf(current); saveMark(itemId, STATUS[(index < 0 ? 0 : index + 1) % STATUS.length]); }
   function markAll(sectionId) { sectionItems(sectionId).filter(function (x) { return itemStatus(x.id) === 'unknown'; }).forEach(function (x) { saveMark(x.id, 'have'); }); }
   function logout() { api('/api/auth/password-logout', { method: 'POST' }).finally(function () { model.user = null; model.workspace = null; renderAuth('You are signed out.'); }); }
 

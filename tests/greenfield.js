@@ -13,9 +13,28 @@ async function run() {
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.match(window.document.body.textContent, /Make the next audit easy/);
   assert.ok(window.document.querySelector('#auth-form'));
-  window.document.querySelector('[data-action="toggle-auth"]').click();
-  assert.ok(window.document.querySelector('input[name="displayName"]'));
-  console.log('GREENFIELD AUTH CHECK PASSED');
+  const authFetch = async (url, options) => {
+    if (url.endsWith('/api/auth/me')) return { ok: true, status: 200, text: async () => JSON.stringify({ user: { email: 'qa@example.test' }, workspace: { id: 'w1', name: 'QA' } }) };
+    if (url.includes('/state')) return { ok: true, status: 200, text: async () => JSON.stringify({ sections: [{ id: 's1', num: 1, title: 'Safety', sort_order: 0, deleted: false }], subsections: [{ id: 'b1', section_id: 's1', num: '1.1', title: 'Eyes', sort_order: 0, deleted: false }], items: [{ id: 'i1', subsection_id: 'b1', label: 'Glasses', store: 'General', sort_order: 0, deleted: false }], marks: [] }) };
+    if (url.includes('/marks/')) return { ok: true, status: 200, text: async () => JSON.stringify({ mark: { status: JSON.parse(options.body).status, updated_at: new Date().toISOString() } }) };
+    throw new Error('unexpected request ' + url);
+  };
+  const loggedIn = new JSDOM(html, { url: 'http://localhost:8899/', runScripts: 'outside-only', pretendToBeVisual: true });
+  loggedIn.window.fetch = authFetch;
+  loggedIn.window.eval(script);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  loggedIn.window.document.querySelector('a.section-card').click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  const status = loggedIn.window.document.querySelector('button.status-button');
+  assert.strictEqual(status.dataset.status, 'unknown');
+  status.click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.strictEqual(loggedIn.window.document.querySelector('button.status-button').dataset.status, 'have');
+  await new Promise(resolve => setTimeout(resolve, 10));
+  loggedIn.window.document.querySelector('button.status-button').click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.strictEqual(loggedIn.window.document.querySelector('button.status-button').dataset.status, 'missing');
+  console.log('GREENFIELD STATUS CYCLE CHECK PASSED');
 }
 
 run().catch(error => { console.error(error); process.exit(1); });
