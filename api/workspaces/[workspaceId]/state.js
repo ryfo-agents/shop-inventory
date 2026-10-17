@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { currentUser, db } = require('../../../lib/cloud-auth');
+const checklist = require('../../../data/checklist.json');
 
 function parseBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -30,12 +31,46 @@ function rows(body, key, max) {
   return value;
 }
 
+async function bulkInsert(sql, table, columns, rows) {
+  if (!rows.length) return;
+  const params = [];
+  const values = rows.map(row => '(' + row.map(value => { params.push(value); return '$' + params.length; }).join(',') + ')').join(',');
+  await sql.query(`INSERT INTO ${table} (${columns.join(',')}) VALUES ${values} ON CONFLICT DO NOTHING`, params);
+}
+
+async function bootstrapWorkspace(workspaceId, actorId) {
+  const existing = await db()`SELECT id FROM sections WHERE workspace_id = ${workspaceId} LIMIT 1`;
+  if (existing.length) return;
+  const sql = db();
+  const now = new Date().toISOString();
+  const sections = [];
+  const subsections = [];
+  const items = [];
+  for (let si = 0; si < checklist.sections.length; si++) {
+    const sec = checklist.sections[si];
+    sections.push([sec.id, workspaceId, sec.num, sec.title, si, false, now]);
+    for (let bi = 0; bi < sec.subsections.length; bi++) {
+      const sub = sec.subsections[bi];
+      subsections.push([sub.id, workspaceId, sec.id, sub.num, sub.title, bi, false, now]);
+      for (let ii = 0; ii < sub.items.length; ii++) {
+        const item = sub.items[ii];
+        items.push([item.id, workspaceId, sub.id, item.label, !!item.qty, item.target == null ? null : item.target, !!item.spec, item.phase == null ? null : item.phase, item.tags || [], item.store || 'General', ii, false, now]);
+      }
+    }
+  }
+  await bulkInsert(sql, 'sections', ['id', 'workspace_id', 'num', 'title', 'sort_order', 'deleted', 'updated_at'], sections);
+  await bulkInsert(sql, 'subsections', ['id', 'workspace_id', 'section_id', 'num', 'title', 'sort_order', 'deleted', 'updated_at'], subsections);
+  await bulkInsert(sql, 'items', ['id', 'workspace_id', 'subsection_id', 'label', 'qty', 'target', 'spec', 'phase', 'tags', 'store', 'sort_order', 'deleted', 'updated_at'], items);
+  await sql`INSERT INTO audit_events (id, workspace_id, actor_id, entity_type, action, metadata) VALUES (${crypto.randomUUID()}, ${workspaceId}, ${actorId}, 'workspace', 'bootstrap', ${JSON.stringify({ sections: sections.length, items: items.length })}::jsonb)`;
+}
+
 module.exports = async function handler(req, res) {
   const workspaceId = req.query && req.query.workspaceId;
   if (!workspaceId) return res.status(400).json({ error: 'workspace_required' });
   try {
     const user = await member(req, workspaceId);
     if (!user) return res.status(401).json({ error: 'not_authorized' });
+    await bootstrapWorkspace(workspaceId, user.id);
     if (req.method === 'GET') return res.status(200).json(await readState(workspaceId));
     if (req.method !== 'PUT') return res.status(405).json({ error: 'method_not_allowed' });
     const body = parseBody(req);
