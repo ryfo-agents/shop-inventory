@@ -1,6 +1,6 @@
 /* Cache-first app shell for the greenfield audit experience. */
-/* v6: fix multi-state item cycling. */
-var CACHE = 'shop-inv-v6';
+/* v7: mobile status sheet and touch-first controls. */
+var CACHE = 'shop-inv-v7';
 var CORE = [
   './',
   'index.html',
