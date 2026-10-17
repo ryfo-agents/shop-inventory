@@ -28,6 +28,7 @@ var toastTimer = null;
 var wakeSentinel = null;
 var sync = { syncing: false, lastSyncedAt: null, loggedIn: false, error: null };
 var syncPushTimer = null;
+var cloud = { enabled: !!window.__SHOP_CLOUD_FIRST__, user: null, workspace: null, saving: false, error: null };
 
 /* ---------------- checklist parser ----------------
    The deployment ships the canonical markdown checklist and parses it here,
@@ -418,7 +419,130 @@ function renderUndoBadge() {
   if (count) count.textContent = String(undoStack.length);
 }
 
-/* ---------------- storage ---------------- */
+/* ---------------- cloud-first client ---------------- */
+
+function cloudApi(path, options) {
+  var opts = options || {};
+  opts.credentials = 'same-origin';
+  opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  return fetch(path, opts).then(function (r) {
+    return r.text().then(function (text) {
+      var data = {}; try { data = text ? JSON.parse(text) : {}; } catch (_) {}
+      if (!r.ok) { var e = new Error(data.error || ('request ' + r.status)); e.status = r.status; throw e; }
+      return data;
+    });
+  });
+}
+
+function cloudRowsToSeed(state) {
+  var secs = {};
+  var subs = {};
+  var out = { sections: [] };
+  (state.sections || []).forEach(function (r) {
+    secs[r.id] = { id: r.id, num: r.num, title: r.title, subsections: [], deleted: r.deleted, updatedAt: r.updated_at, sortOrder: r.sort_order };
+    out.sections.push(secs[r.id]);
+  });
+  (state.subsections || []).forEach(function (r) {
+    var sub = { id: r.id, num: r.num, title: r.title, items: [], deleted: r.deleted, updatedAt: r.updated_at, sortOrder: r.sort_order };
+    subs[r.id] = sub;
+    if (secs[r.section_id]) secs[r.section_id].subsections.push(sub);
+  });
+  (state.items || []).forEach(function (r) {
+    var item = { id: r.id, label: r.label, qty: r.qty, target: r.target, spec: r.spec, phase: r.phase, tags: r.tags || [], store: r.store, deleted: r.deleted, updatedAt: r.updated_at, sortOrder: r.sort_order };
+    if (subs[r.subsection_id]) subs[r.subsection_id].items.push(item);
+  });
+  out.sections.sort(bySortOrder);
+  out.sections.forEach(function (s) { s.subsections.sort(bySortOrder); s.subsections.forEach(function (sub) { sub.items.sort(bySortOrder); }); });
+  return out;
+}
+
+function cloudStatePayload() {
+  var sections = [], subsections = [], items = [], marks = [];
+  var now = new Date().toISOString();
+  for (var si = 0; si < seed.sections.length; si++) {
+    var sec = seed.sections[si];
+    sections.push({ id: sec.id, num: sec.num, title: sec.title, sortOrder: si, deleted: !!sec.deleted, updatedAt: sec.updatedAt || now });
+    for (var bi = 0; bi < sec.subsections.length; bi++) {
+      var sub = sec.subsections[bi];
+      subsections.push({ id: sub.id, sectionId: sec.id, num: sub.num, title: sub.title, sortOrder: bi, deleted: !!sub.deleted, updatedAt: sub.updatedAt || now });
+      for (var ii = 0; ii < sub.items.length; ii++) {
+        var it = sub.items[ii];
+        items.push({ id: it.id, subsectionId: sub.id, label: it.label, qty: !!it.qty, target: it.target, spec: !!it.spec, phase: it.phase, tags: it.tags || [], store: it.store, sortOrder: ii, deleted: !!it.deleted, updatedAt: it.updatedAt || now });
+      }
+    }
+  }
+  for (var id in user) if (Object.prototype.hasOwnProperty.call(user, id)) {
+    var r = user[id];
+    marks.push({ itemId: id, status: r.s || null, q: typeof r.q === 'number' ? r.q : null, sp: r.sp || null, n: r.n || null, c: typeof r.c === 'number' ? r.c : null, updatedAt: r.u || now });
+  }
+  return { sections: sections, subsections: subsections, items: items, marks: marks };
+}
+
+function cloudApplyMarks(state) {
+  user = {};
+  (state.marks || []).forEach(function (r) {
+    var mark = { u: r.updated_at };
+    if (r.status) mark.s = r.status;
+    if (typeof r.q === 'number') mark.q = r.q;
+    if (r.sp) mark.sp = r.sp;
+    if (r.n) mark.n = r.n;
+    if (typeof r.c === 'number') mark.c = Number(r.c);
+    if (mark.s || typeof mark.q === 'number' || mark.sp || mark.n || typeof mark.c === 'number') user[r.item_id] = mark;
+  });
+}
+
+function cloudSave() {
+  if (!cloud.enabled || !cloud.workspace || cloud.saving) return;
+  cloud.saving = true; cloud.error = null; renderSyncDot();
+  cloudApi('/api/workspaces/' + encodeURIComponent(cloud.workspace.id) + '/state', { method: 'PUT', body: JSON.stringify(cloudStatePayload()) })
+    .then(function (state) {
+      seed = cloudRowsToSeed(state); cloudApplyMarks(state); buildIndex();
+      cloud.saving = false; sync.lastSyncedAt = new Date().toISOString(); renderSyncDot(); route(); paintPlate();
+    })['catch'](function (err) {
+      cloud.saving = false; cloud.error = err.status === 401 ? 'signed out' : 'not saved'; renderSyncDot();
+    });
+}
+
+function renderCloudLogin(message) {
+  var view = document.getElementById('view');
+  view.innerHTML = '<section class="card auth-card"><h1>Shop Inventory</h1><p>' + esc(message || 'Sign in to continue.') + '</p>' +
+    '<form id="cloudAuthForm"><label class="field"><span>Email</span><input required type="email" name="email" autocomplete="email"></label>' +
+    '<label class="field"><span>Password</span><input required minlength="12" type="password" name="password" autocomplete="current-password"></label>' +
+    '<label class="field"><span>Name (for new account)</span><input type="text" name="displayName" autocomplete="name"></label>' +
+    '<div class="form-actions"><button class="btn btn-primary" data-auth="login" type="submit">Sign in</button><button class="btn" data-auth="register" type="button">Create account</button></div></form></section>';
+  view.querySelector('#cloudAuthForm').addEventListener('submit', function (ev) {
+    ev.preventDefault(); cloudAuthenticate('login');
+  });
+  view.querySelector('[data-auth="register"]').addEventListener('click', function () { cloudAuthenticate('register'); });
+}
+
+function cloudAuthenticate(kind) {
+  var form = document.getElementById('cloudAuthForm');
+  var data = { email: form.email.value, password: form.password.value, displayName: form.displayName.value };
+  cloudApi('/api/auth/' + (kind === 'register' ? 'register' : 'password-login'), { method: 'POST', body: JSON.stringify(data) })
+    .then(function (result) { cloud.user = result.user; cloud.workspace = result.workspace; return cloudApi('/api/workspaces/' + encodeURIComponent(cloud.workspace.id) + '/state'); })
+    .then(function (state) {
+      if (!state.sections.length) return cloudApi('/api/workspaces/' + encodeURIComponent(cloud.workspace.id) + '/state', { method: 'PUT', body: JSON.stringify(cloudStatePayload()) });
+      return state;
+    })
+    .then(function (state) { seed = cloudRowsToSeed(state); cloudApplyMarks(state); buildIndex(); cloud.error = null; initializeApp(); })
+    ['catch'](function (err) { renderCloudLogin(err.message === 'account_exists' ? 'That account already exists.' : 'Sign-in failed. Check your details and try again.'); });
+}
+
+function initializeApp() {
+  document.documentElement.setAttribute('data-theme', prefs.theme);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', prefs.theme === 'light' ? '#e6e4de' : '#14181b');
+  document.getElementById('view').addEventListener('click', onClick);
+  document.getElementById('view').addEventListener('input', onInput);
+  document.getElementById('view').addEventListener('change', onInput);
+  document.getElementById('view').addEventListener('focusin', function (ev) { var el = ev.target; var fld = el.getAttribute && el.getAttribute('data-fld'); if ((fld === 'label' || fld === 'sec-title') && !renameOriginal.has(el)) renameOriginal.set(el, el.value); });
+  document.getElementById('toastUndo').addEventListener('click', performUndo);
+  document.getElementById('undoBtn').addEventListener('click', performUndo);
+  window.addEventListener('hashchange', route);
+  applyWakeLock(); route(); renderSyncDot(); renderUndoBadge();
+  var bootEl = document.getElementById('boot'); if (bootEl) bootEl.parentNode.removeChild(bootEl);
+}
+
 
 function openDb() {
   return new Promise(function (resolve, reject) {
@@ -457,6 +581,11 @@ function idbSet(key, val) {
 
 var saveTimer = null;
 function persist() {
+  if (cloud.enabled) {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(cloudSave, 180);
+    return;
+  }
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(function () {
     var payload = {
@@ -662,6 +791,12 @@ function syncLogout() {
 function renderSyncDot() {
   var el = document.getElementById('syncDot');
   if (!el) return;
+  if (cloud.enabled) {
+    el.hidden = false;
+    el.className = 'sync-dot ' + (cloud.error ? 'sync-dot-error' : cloud.saving ? 'sync-dot-busy' : 'sync-dot-ok');
+    el.title = cloud.error || (cloud.saving ? 'Saving…' : 'Saved to cloud');
+    return;
+  }
   if (!prefs.syncEnabled) { el.hidden = true; return; }
   el.hidden = false;
   el.className = 'sync-dot ' +
@@ -1298,6 +1433,16 @@ function viewSettings() {
   }
   h += '</div>';
 
+  h += '<div class="wrap"><div class="eyebrow">Account</div></div>';
+  h += '<div class="card"><h2>Cloud account</h2>';
+  if (cloud.enabled) {
+    h += '<p>' + esc(cloud.user ? cloud.user.email : 'Not signed in') + '</p>' +
+      '<button type="button" class="btn btn-danger" data-act="cloud-logout">Sign out</button>';
+  } else {
+    h += '<p>Cloud-first mode is disabled in this build.</p>';
+  }
+  h += '</div>';
+
   h += '<div class="wrap"><div class="eyebrow">Checklist</div></div>';
   h += '<div class="card"><h2>Sections</h2>' +
     '<p>Rename, reorder, or remove a section. Subsections and items are managed from inside each section’s Edit mode.</p>';
@@ -1655,6 +1800,13 @@ function onClick(ev) {
     return;
   }
 
+  if (act === 'cloud-logout') {
+    cloudApi('/api/auth/password-logout', { method: 'POST' })['catch'](function () {});
+    cloud.user = null; cloud.workspace = null; cloud.enabled = true;
+    renderCloudLogin('Signed out.');
+    return;
+  }
+
   if (act === 'sync-login') {
     var passIn = document.getElementById('syncPass');
     var pass = passIn && passIn.value;
@@ -1913,6 +2065,29 @@ function buildIndex() {
 }
 
 function boot() {
+  if (cloud.enabled) {
+    fetch('data/checklist.md', { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('checklist ' + r.status);
+      return r.text();
+    }).then(function (text) {
+      seed = parseChecklist(text); buildIndex();
+      return cloudApi('/api/auth/me').then(function (session) {
+        cloud.user = session.user; cloud.workspace = session.workspace;
+        return cloudApi('/api/workspaces/' + encodeURIComponent(cloud.workspace.id) + '/state');
+      }).then(function (state) {
+        if (!state.sections.length) {
+          return cloudApi('/api/workspaces/' + encodeURIComponent(cloud.workspace.id) + '/state', { method: 'PUT', body: JSON.stringify(cloudStatePayload()) });
+        }
+        return state;
+      }).then(function (state) {
+        seed = cloudRowsToSeed(state); cloudApplyMarks(state); buildIndex(); initializeApp(); return null;
+      });
+    })['catch'](function (err) {
+      if (err.status === 401) renderCloudLogin();
+      else { var b = document.getElementById('boot'); if (b) b.textContent = 'Could not connect to the inventory service.'; if (window.console) console.error(err); }
+    });
+    return;
+  }
   fetch('data/checklist.md', { cache: 'no-cache' })
     .then(function (r) {
       if (!r.ok) throw new Error('checklist ' + r.status);
@@ -1936,46 +2111,8 @@ function boot() {
         }
       }
       sync.loggedIn = prefs.syncEnabled;
-      document.documentElement.setAttribute('data-theme', prefs.theme);
-      document.querySelector('meta[name=theme-color]')
-        .setAttribute('content', prefs.theme === 'light' ? '#e6e4de' : '#14181b');
-
-      document.getElementById('view').addEventListener('click', onClick);
-      document.getElementById('view').addEventListener('input', onInput);
-      document.getElementById('view').addEventListener('change', onInput);
-      document.getElementById('view').addEventListener('focusin', function (ev) {
-        var el = ev.target;
-        var fld = el.getAttribute && el.getAttribute('data-fld');
-        if ((fld === 'label' || fld === 'sec-title') && !renameOriginal.has(el)) {
-          renameOriginal.set(el, el.value);
-        }
-      });
-      document.getElementById('toastUndo').addEventListener('click', performUndo);
-      document.getElementById('undoBtn').addEventListener('click', performUndo);
-      window.addEventListener('hashchange', route);
-      window.addEventListener('online', function () { if (prefs.syncEnabled) syncNow(); });
-      window.addEventListener('keydown', function (ev) {
-        var meta = ev.ctrlKey || ev.metaKey;
-        if (!meta || ev.key !== 'z' || ev.shiftKey) return;
-        var tag = ev.target && ev.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-        ev.preventDefault();
-        performUndo();
-      });
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'visible') {
-          if (prefs.wake) applyWakeLock();
-          if (prefs.syncEnabled) syncNow();
-        }
-      });
-
-      applyWakeLock();
-      route();
-      renderSyncDot();
-      renderUndoBadge();
+      initializeApp();
       if (prefs.syncEnabled && navigator.onLine !== false) syncNow();
-      var boot = document.getElementById('boot');
-      if (boot) boot.parentNode.removeChild(boot);
     })
     ['catch'](function (err) {
       var b = document.getElementById('boot');

@@ -21,6 +21,7 @@ const errors = [];
 w.addEventListener('error', e => errors.push('window error: ' + e.message));
 w.console.error = (...a) => errors.push('console.error: ' + a.map(String).join(' ').slice(0, 300));
 
+w.__SHOP_CLOUD_FIRST__ = false;
 w.eval(fs.readFileSync(path + 'app.js', 'utf8'));
 
 setTimeout(() => {

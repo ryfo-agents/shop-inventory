@@ -165,9 +165,7 @@ Add database constraints for:
 
 ### Step 4 — Replace shared passphrase access
 
-**Recommended path:** passwordless email login or a mature hosted identity provider. Do not create a new custom password system unless there is a strong reason.
-
-**Actions**
+**Current implementation:** Stage 1 uses email plus a minimum 12-character password, scrypt password hashing, secure HttpOnly session cookies, and in-memory login/register rate limiting. Passwordless email or a hosted identity provider can replace this later without changing the workspace API.
 
 - Add sign-in and sign-out screens.
 - Create or locate the user after verified authentication.
