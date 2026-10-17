@@ -34,7 +34,19 @@ async function run() {
   loggedIn.window.document.querySelector('button.status-button').click();
   await new Promise(resolve => setTimeout(resolve, 10));
   assert.strictEqual(loggedIn.window.document.querySelector('button.status-button').dataset.status, 'missing');
-  console.log('GREENFIELD STATUS CYCLE CHECK PASSED');
+  const mobile = new JSDOM(html, { url: 'http://localhost:8899/', runScripts: 'outside-only', pretendToBeVisual: true });
+  Object.defineProperty(mobile.window, 'innerWidth', { value: 390, configurable: true });
+  mobile.window.fetch = authFetch;
+  mobile.window.eval(script);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  mobile.window.document.querySelector('a.section-card').click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  mobile.window.document.querySelector('button.status-button').click();
+  assert.strictEqual(mobile.window.document.querySelectorAll('.status-option').length, 6);
+  mobile.window.document.querySelector('.status-option[data-status="missing"]').click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.strictEqual(mobile.window.document.querySelector('button.status-button').dataset.status, 'missing');
+  console.log('GREENFIELD MOBILE STATUS SHEET CHECK PASSED');
 }
 
 run().catch(error => { console.error(error); process.exit(1); });

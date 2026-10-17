@@ -35,8 +35,18 @@
     return { total: items.length, audited: audited, remaining: items.length - audited, gaps: gaps, blocking: blocking, percent: items.length ? Math.round(audited / items.length * 100) : 0 };
   }
   function allStats() { return stats(model.items.filter(function (x) { return !x.deleted; })); }
+  function isMobile() { return window.innerWidth <= 560 || (window.matchMedia && window.matchMedia('(max-width: 560px)').matches); }
+  function closeStatusSheet() { var sheet = document.getElementById('status-sheet-backdrop'); if (sheet) sheet.remove(); }
+  function openStatusSheet(itemId) {
+    closeStatusSheet();
+    var item = model.items.find(function (x) { return x.id === itemId; });
+    if (!item) return;
+    var current = itemStatus(itemId);
+    var options = STATUS.map(function (status) { return '<button class="status-option" data-action="status-choice" data-id="' + esc(itemId) + '" data-status="' + status + '"><strong>' + STATUS_SYMBOL[status] + ' ' + esc(STATUS_LABEL[status]) + '</strong><span>' + (status === current ? 'Current choice' : 'Tap to choose') + '</span></button>'; }).join('');
+    app.insertAdjacentHTML('beforeend', '<div class="status-sheet-backdrop" id="status-sheet-backdrop"><section class="status-sheet" role="dialog" aria-modal="true" aria-labelledby="status-sheet-title"><h2 id="status-sheet-title">Update item status</h2><p class="status-sheet-help">Choose exactly what is true for this item.</p><div class="status-options">' + options + '</div><button class="secondary-button status-sheet-close" data-action="close-status-sheet">Cancel</button></section></div>');
+    var first = document.querySelector('.status-option[data-status="' + current + '"]'); if (first) first.focus();
+  }
   function route() { return (location.hash || '#/').slice(2).split('/'); }
-
   function normalizeState(state) {
     var sections = (state.sections || []).map(function (r) { return { id: r.id, num: r.num, title: r.title, sortOrder: r.sort_order, deleted: r.deleted }; }).filter(function (x) { return !x.deleted; }).sort(function (a,b) { return a.sortOrder - b.sortOrder; });
     var sectionMap = {}; sections.forEach(function (s) { sectionMap[s.id] = s; });
@@ -72,16 +82,16 @@
     var section = sectionById(id); if (!section) return renderHome();
     var items = sectionItems(id); var s = stats(items); var query = model.query.trim().toLowerCase();
     var visible = items.filter(function (item) { var status = itemStatus(item.id); var matchesFilter = model.filter === 'all' || (model.filter === 'gaps' ? ['missing','upgrade','blocking'].indexOf(status) >= 0 : status === model.filter); var matchesQuery = !query || item.label.toLowerCase().indexOf(query) >= 0 || (item.store || '').toLowerCase().indexOf(query) >= 0; return matchesFilter && matchesQuery; });
-    var rows = visible.map(function (item) { var status = itemStatus(item.id); var saving = model.saving[item.id]; return '<div class="item-row"><button class="status-button" data-action="mark" data-id="' + esc(item.id) + '" data-status="' + status + '" aria-label="' + esc(item.label) + ': ' + STATUS_LABEL[status] + '. Activate to change.">' + STATUS_SYMBOL[status] + '</button><div class="item-content"><div class="item-label">' + esc(item.label) + '</div><div class="item-detail"><span>' + esc(STATUS_LABEL[status]) + '</span>' + (item.qty ? '<span>Target ' + esc(item.target) + '</span>' : '') + (item.store ? '<span class="item-store">' + esc(item.store) + '</span>' : '') + '</div></div><span class="item-status">' + (saving ? 'Saving…' : status === 'unknown' ? '' : 'Saved') + '</span></div>'; }).join('');
+    var rows = visible.map(function (item) { var status = itemStatus(item.id); var saving = model.saving[item.id]; return '<div class="item-row"><button class="status-button" data-action="mark" data-id="' + esc(item.id) + '" data-status="' + status + '" aria-label="' + esc(item.label) + ': ' + STATUS_LABEL[status] + '. Activate to change.">' + STATUS_SYMBOL[status] + '<span class="mobile-status-label">' + esc(STATUS_LABEL[status]) + '</span></button><div class="item-content"><div class="item-label">' + esc(item.label) + '</div><div class="item-detail"><span>' + esc(STATUS_LABEL[status]) + '</span>' + (item.qty ? '<span>Target ' + esc(item.target) + '</span>' : '') + (item.store ? '<span class="item-store">' + esc(item.store) + '</span>' : '') + '</div></div><span class="item-status">' + (saving ? 'Saving…' : status === 'unknown' ? '' : 'Saved') + '</span></div>'; }).join('');
     var filters = ['all','gaps','unknown','have','missing','upgrade','blocking','na'].map(function (f) { return '<button class="filter" data-action="filter" data-filter="' + f + '" aria-pressed="' + (model.filter === f ? 'true' : 'false') + '">' + (f === 'all' ? 'All' : f === 'gaps' ? 'Gaps' : STATUS_LABEL[f]) + '</button>'; }).join('');
-    var content = '<a class="back-link" href="#/">← All sections</a><div class="detail-heading"><div><p class="eyebrow">Section ' + String(section.num).padStart(2, '0') + '</p><h1>' + esc(section.title) + '</h1><p class="lede">' + s.audited + ' of ' + s.total + ' audited · ' + s.gaps + ' items on the buy list</p></div><div class="detail-actions"><button class="secondary-button" data-action="mark-all" data-id="' + esc(section.id) + '">Mark remaining as Have</button></div></div><div class="filter-row" role="toolbar" aria-label="Filter checklist">' + filters + '</div><div class="section-toolbar"><div><h2>Checklist</h2><span class="muted">Tap the status to cycle through decisions.</span></div><input class="search" id="item-search" type="search" placeholder="Search this section" value="' + esc(model.query) + '" aria-label="Search this section"></div><div class="item-list">' + (rows || '<div class="empty">Nothing matches this filter.</div>') + '</div>';
+    var content = '<a class="back-link" href="#/">← All sections</a><div class="detail-heading"><div><p class="eyebrow">Section ' + String(section.num).padStart(2, '0') + '</p><h1>' + esc(section.title) + '</h1><p class="lede">' + s.audited + ' of ' + s.total + ' audited · ' + s.gaps + ' items on the buy list</p></div><div class="detail-actions"><button class="secondary-button" data-action="mark-all" data-id="' + esc(section.id) + '">Mark remaining as Have</button></div></div><div class="filter-row" role="toolbar" aria-label="Filter checklist">' + filters + '</div><div class="section-toolbar"><div><h2>Checklist</h2><span class="muted">Choose the status that is true right now.</span></div><input class="search" id="item-search" type="search" placeholder="Search this section" value="' + esc(model.query) + '" aria-label="Search this section"></div><div class="item-list">' + (rows || '<div class="empty">Nothing matches this filter.</div>') + '</div>';
     app.innerHTML = shell(content, 'home');
   }
 
   function renderBuy() {
     var gaps = model.items.filter(function (item) { return ['missing','upgrade','blocking'].indexOf(itemStatus(item.id)) >= 0; });
     var grouped = {}; gaps.forEach(function (item) { var store = item.store || 'General'; (grouped[store] || (grouped[store] = [])).push(item); });
-    var body = Object.keys(grouped).sort().map(function (store) { return '<section class="panel"><h2>' + esc(store) + '</h2><p class="muted">' + grouped[store].length + ' item' + (grouped[store].length === 1 ? '' : 's') + '</p><div class="item-list">' + grouped[store].map(function (item) { var status = itemStatus(item.id); return '<div class="item-row"><button class="status-button" data-action="mark" data-id="' + esc(item.id) + '" data-status="' + status + '" aria-label="' + esc(item.label) + ': ' + STATUS_LABEL[status] + '. Activate to change.">' + STATUS_SYMBOL[status] + '</button><div class="item-content"><div class="item-label">' + esc(item.label) + '</div><div class="item-detail"><span>' + esc(STATUS_LABEL[status]) + '</span><span class="item-store">Section ' + esc(sectionById(item.sectionId).title) + '</span></div></div><span class="item-status">' + (item.qty && item.target ? 'Target ' + esc(item.target) : '') + '</span></div>'; }).join('') + '</div></section>'; }).join('');
+    var body = Object.keys(grouped).sort().map(function (store) { return '<section class="panel"><h2>' + esc(store) + '</h2><p class="muted">' + grouped[store].length + ' item' + (grouped[store].length === 1 ? '' : 's') + '</p><div class="item-list">' + grouped[store].map(function (item) { var status = itemStatus(item.id); return '<div class="item-row"><button class="status-button" data-action="mark" data-id="' + esc(item.id) + '" data-status="' + status + '" aria-label="' + esc(item.label) + ': ' + STATUS_LABEL[status] + '. Activate to change.">' + STATUS_SYMBOL[status] + '<span class="mobile-status-label">' + esc(STATUS_LABEL[status]) + '</span></button><div class="item-content"><div class="item-label">' + esc(item.label) + '</div><div class="item-detail"><span>' + esc(STATUS_LABEL[status]) + '</span><span class="item-store">Section ' + esc(sectionById(item.sectionId).title) + '</span></div></div><span class="item-status">' + (item.qty && item.target ? 'Target ' + esc(item.target) : '') + '</span></div>'; }).join('') + '</div></section>'; }).join('');
     app.innerHTML = shell('<div class="page-heading"><div><p class="eyebrow">Next actions</p><h1>Buy list</h1><p class="lede">Only items marked Missing, Upgrade, or Blocking appear here.</p></div></div>' + (body || '<div class="empty"><h2>You are covered.</h2><p>No purchase gaps are recorded yet.</p><a class="primary-button" href="#/">Return to overview</a></div>'), 'buy');
   }
 
@@ -111,7 +121,9 @@
     if (action === 'logout') logout();
     if (action === 'settings') { location.hash = '#/settings'; }
     if (action === 'toggle-auth') { model.authMode = model.authMode === 'login' ? 'register' : 'login'; renderAuth(); }
-    if (action === 'mark') cycle(target.getAttribute('data-id'));
+    if (action === 'mark') { if (isMobile()) openStatusSheet(target.getAttribute('data-id')); else cycle(target.getAttribute('data-id')); }
+    if (action === 'status-choice') { var choiceId = target.getAttribute('data-id'); var choiceStatus = target.getAttribute('data-status'); closeStatusSheet(); saveMark(choiceId, choiceStatus); }
+    if (action === 'close-status-sheet') closeStatusSheet();
     if (action === 'filter') { model.filter = target.getAttribute('data-filter'); render(); }
     if (action === 'mark-all') markAll(target.getAttribute('data-id'));
   });
@@ -122,6 +134,7 @@
     api('/api/auth/' + (model.authMode === 'register' ? 'register' : 'password-login'), { method: 'POST', body: JSON.stringify(body) }).then(function (session) { model.user = session.user; model.workspace = session.workspace; return api('/api/workspaces/' + encodeURIComponent(model.workspace.id) + '/state'); }).then(function (state) { normalizeState(state); location.hash = '#/'; render(); }).catch(function (error) { button.disabled = false; renderAuth(error.message === 'account_exists' ? 'That email already has an account.' : 'Sign-in failed. Check your details and try again.'); });
   });
   window.addEventListener('hashchange', render);
+  window.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeStatusSheet(); });
 
   function boot() { api('/api/auth/me').then(function (session) { model.user = session.user; model.workspace = session.workspace; return api('/api/workspaces/' + encodeURIComponent(model.workspace.id) + '/state'); }).then(function (state) { normalizeState(state); render(); }).catch(function (error) { if (error.status === 401) renderAuth(); else renderAuth('The inventory service is unavailable. Try again shortly.'); }); }
   boot();
