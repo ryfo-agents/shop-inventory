@@ -1,6 +1,6 @@
 /* Cache-first app shell for the greenfield audit experience. */
-/* v5: promote the greenfield task-first client to the production root. */
-var CACHE = 'shop-inv-v5';
+/* v6: fix multi-state item cycling. */
+var CACHE = 'shop-inv-v6';
 var CORE = [
   './',
   'index.html',
