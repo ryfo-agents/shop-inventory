@@ -39,9 +39,7 @@ async function bulkInsert(sql, table, columns, rows) {
 }
 
 async function bootstrapWorkspace(workspaceId, actorId) {
-  console.log('workspace bootstrap', workspaceId, { sections: checklist.sections && checklist.sections.length });
   const existing = await db()`SELECT id FROM sections WHERE workspace_id = ${workspaceId} LIMIT 1`;
-  console.log('workspace bootstrap existing', workspaceId, existing.length);
   if (existing.length) return;
   const sql = db();
   const now = new Date().toISOString();
@@ -50,13 +48,15 @@ async function bootstrapWorkspace(workspaceId, actorId) {
   const items = [];
   for (let si = 0; si < checklist.sections.length; si++) {
     const sec = checklist.sections[si];
-    sections.push([sec.id, workspaceId, sec.num, sec.title, si, false, now]);
+    const sectionId = `${workspaceId}:${sec.id}`;
+    sections.push([sectionId, workspaceId, sec.num, sec.title, si, false, now]);
     for (let bi = 0; bi < sec.subsections.length; bi++) {
       const sub = sec.subsections[bi];
-      subsections.push([sub.id, workspaceId, sec.id, sub.num, sub.title, bi, false, now]);
+      const subsectionId = `${workspaceId}:${sub.id}`;
+      subsections.push([subsectionId, workspaceId, sectionId, sub.num, sub.title, bi, false, now]);
       for (let ii = 0; ii < sub.items.length; ii++) {
         const item = sub.items[ii];
-        items.push([item.id, workspaceId, sub.id, item.label, !!item.qty, item.target == null ? null : item.target, !!item.spec, item.phase == null ? null : item.phase, item.tags || [], item.store || 'General', ii, false, now]);
+        items.push([`${workspaceId}:${item.id}`, workspaceId, subsectionId, item.label, !!item.qty, item.target == null ? null : item.target, !!item.spec, item.phase == null ? null : item.phase, item.tags || [], item.store || 'General', ii, false, now]);
       }
     }
   }
