@@ -6,15 +6,17 @@
 
 ## Executive recommendation
 
-Turn this into a **private, multi-device household/workshop inventory product first**, not a general SaaS marketplace or full warehouse-management system.
+Turn this into a **private, cloud-first, multi-device household/workshop inventory product** first, not a general SaaS marketplace or full warehouse-management system.
 
 The existing product already has a strong wedge:
 
-> Walk through a physical shop, audit what is present, identify gaps, build a buy list, and keep the result usable offline.
+> Walk through a physical shop, audit what is present, identify gaps, build a buy list, and keep the result usable across browsers and devices.
 
-The MVP should optimize for one household or small workshop owner who needs a dependable audit tool on a phone, tablet, and laptop. Keep the local-first PWA experience, but make the backend, authentication, data model, recovery, observability, and deployment trustworthy enough for real production use.
+The MVP should optimize for one household or small workshop owner who needs a dependable audit tool on a phone, tablet, and laptop. The server should be authoritative; browser storage may cache preferences or static assets, but inventory edits should require a confirmed online API write.
 
-Do not start with billing, teams, barcode integrations, vendor APIs, or a framework rewrite. Those are post-MVP options after actual usage proves the need.
+The detailed implementation sequence is in [`STAGE_1_PLAN.md`](STAGE_1_PLAN.md).
+
+The cloud-first decision above supersedes older local-first recommendations elsewhere in this document. For Stage 1 scope, use [`STAGE_1_PLAN.md`](STAGE_1_PLAN.md) as the implementation authority; offline edits, client sync queues, and conflict merging are deferred.
 
 ## Repository assessment
 
