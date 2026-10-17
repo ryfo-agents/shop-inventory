@@ -504,6 +504,8 @@ function cloudSave() {
 }
 
 function renderCloudLogin(message) {
+  var boot = document.getElementById('boot');
+  if (boot) boot.parentNode.removeChild(boot);
   var view = document.getElementById('view');
   view.innerHTML = '<section class="card auth-card"><h1>Shop Inventory</h1><p>' + esc(message || 'Sign in to continue.') + '</p>' +
     '<form id="cloudAuthForm"><label class="field"><span>Email</span><input required type="email" name="email" autocomplete="email"></label>' +
