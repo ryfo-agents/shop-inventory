@@ -1,6 +1,6 @@
 /* Cache-first app shell for the greenfield audit experience. */
-/* v7: mobile status sheet and touch-first controls. */
-var CACHE = 'shop-inv-v7';
+/* v8: iPhone zoom lock for touch-first status controls. */
+var CACHE = 'shop-inv-v8';
 var CORE = [
   './',
   'index.html',
