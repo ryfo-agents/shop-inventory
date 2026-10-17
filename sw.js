@@ -1,8 +1,8 @@
 /* Cache-first app shell so the audit works with no signal in the garage. */
 /* Bump on every shipped change to index.html / app.js / styles.css, or
    returning devices keep booting the previous shell from cache.
-   v3: cloud-first production shell and authenticated API. */
-var CACHE = 'shop-inv-v3';
+   v4: polished cloud authentication form. */
+var CACHE = 'shop-inv-v4';
 var CORE = [
   './',
   'index.html',
