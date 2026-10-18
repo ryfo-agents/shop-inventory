@@ -27,7 +27,7 @@ This branch uses a small, explicit product language instead of importing a large
 
 - **Overview:** progress summary → sections → search.
 - **Section:** breadcrumb → section progress → status filters → checklist.
-- **Item:** one large status control, one readable label, secondary metadata.
+- **Item:** one large status control, one readable label, secondary metadata. A single tap advances the status; the current label is always visible.
 - **Buy list:** grouped by store; only actionable gaps appear.
 - **Auth:** one focused form, clear recovery message, no unnecessary fields during sign-in.
 - **Feedback:** optimistic local state, visible `Saving…`, then `Saved` or a spoken error announcement.

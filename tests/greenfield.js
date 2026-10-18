@@ -42,11 +42,14 @@ async function run() {
   mobile.window.document.querySelector('a.section-card').click();
   await new Promise(resolve => setTimeout(resolve, 10));
   mobile.window.document.querySelector('button.status-button').click();
-  assert.strictEqual(mobile.window.document.querySelectorAll('.status-option').length, 6);
-  mobile.window.document.querySelector('.status-option[data-status="missing"]').click();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.strictEqual(mobile.window.document.querySelector('button.status-button').dataset.status, 'have');
+  await new Promise(resolve => setTimeout(resolve, 10));
+  mobile.window.document.querySelector('button.status-button').click();
   await new Promise(resolve => setTimeout(resolve, 10));
   assert.strictEqual(mobile.window.document.querySelector('button.status-button').dataset.status, 'missing');
-  console.log('GREENFIELD MOBILE STATUS SHEET CHECK PASSED');
+  assert.ok(!mobile.window.document.querySelector('.status-sheet'));
+  console.log('GREENFIELD MOBILE SINGLE-TAP CHECK PASSED');
 }
 
 run().catch(error => { console.error(error); process.exit(1); });
