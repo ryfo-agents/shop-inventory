@@ -68,8 +68,8 @@ Acceptance: one normal command verifies active client; tests identify mocked vs 
 - [x] I2 Merge workstreams into integration branch; resolve overlapping tests/config intentionally.
 - [x] I3 Run active, legacy, API, migration, worker, browser and accessibility gates; address regressions.
 - [x] I4 Independent security/correctness reviewer on combined diff; fix blockers and re-run.
-- [ ] I5 Preview using isolated data; production deploy only after release gates pass and rollback target recorded.
-- [ ] I6 Fresh readback: deployed SHA/assets/API health, authenticated write/read, second-session persistence, account switch, mobile browser checks.
+- [x] I5 Preview using isolated data; production deploy only after release gates pass and rollback target recorded.
+- [x] I6 Fresh readback: deployed SHA/assets/API health, authenticated write/read, second-session persistence, account switch, mobile browser checks.
 - [x] I7 Update this board with evidence, remaining hardware/service blockers, commit IDs and URLs. Never mark a gate done from an agent self-report alone.
 
 ## Dependencies
@@ -82,6 +82,6 @@ A and B use a preservation-aware mark body `{version,status,q,sp,n,c}`. `version
 - Parent ran `npm run test:release` with disposable PostgreSQL 18.4: 29 workflow tests plus active auth/mobile checks; 28 unit tests; 9 ops checks; 39 real database/API tests; 12 fixture-browser journeys; 14 real HTTPS/API/PostgreSQL Chromium/WebKit journeys; 45 legacy reference checks. All passed; legacy suite still emits 29 disclosed jsdom diagnostics.
 - Real dump/restore was rerun by parent: exact one-item/one-mark metadata snapshot, revision 2, 95 public constraints, 0600 archive, fixture DB/archive cleanup.
 - Backend independently approved after quarantine-collision/auth-input regressions. UI numeric-draft fix passes native Chromium/WebKit+PostgreSQL tests; final independent re-review approved on October 27, 2026 with no remaining blocking findings.
-- Physical iPhone Safari/Home Screen acceptance and live Neon/Vercel migration/deployment/readback remain open. Do not widen access before invitation/recovery/rate-limit policy is implemented.
+- Physical iPhone Safari/Home Screen acceptance remains an explicit hardware follow-up; user authorized production release on October 27. Live Neon migrations, Vercel promotion, authenticated readback, second-session persistence and account-switch checks are complete. Do not widen access before invitation/recovery/rate-limit policy is implemented.
 - Structural checklist editing is deliberately deferred; undo is session-local. CLAUDE.md is a protected legacy instruction file and was not modified; README and current roadmap document the actual cloud-first architecture.
-- No production deployment or production database changes have been made. Implementation checkboxes represent locally verified scope, not a production release.
+- Production release: merged runtime `6519f49`, deployment `dpl_DhNcnUj6VffYNAsKbWhbhUDaSqfz`; public root and assets match merged files byte-for-byte. Two isolated QA accounts removed; all pre-existing user/checklist/mark fields compare unchanged to the pre-migration backup. See `docs/RELEASE_2026-10-27.md`.
