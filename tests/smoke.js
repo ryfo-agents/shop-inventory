@@ -1,3 +1,4 @@
+console.log('LEGACY REFERENCE ONLY: jsdom mocked/offline harness, not shipped-client or browser acceptance.');
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = './';
@@ -254,7 +255,7 @@ setTimeout(() => {
       check('new section appears on index', qa('.sec-row').length === 20, String(qa('.sec-row').length));
 
       console.log(log.join('\n'));
-      console.log('\nerrors captured: ' + errors.length);
+      console.log('\nconsole/window errors captured: ' + errors.length + ' (jsdom not-implemented diagnostics are emitted separately and are NOT counted here)');
       errors.slice(0, 8).forEach(e => console.log('  ' + e));
       const fails = log.filter(l => l.startsWith('FAIL'));
       console.log('\n' + (fails.length ? fails.length + ' FAILURES' : 'ALL ' + log.length + ' CHECKS PASSED'));

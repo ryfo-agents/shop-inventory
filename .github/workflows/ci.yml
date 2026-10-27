@@ -1,25 +1,34 @@
 name: CI
-
 on:
   push:
-    branches: [main]
+    branches: [main, greenfield-ux, 'work/**']
   pull_request:
-    branches: [main]
-
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  test:
+  active-and-legacy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Syntax checks
-        run: |
-          find api lib scripts -name '*.js' -print0 | xargs -0 -n1 node --check
-          node --check app.js
-      - name: Diff check
-        run: git diff --check
+      - name: Legacy reference suite (not shipped-client acceptance)
+        run: npm run test:legacy
+      - run: git diff --check
+  browser-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Real browsers against isolated in-memory API fixture (not database acceptance)
+        run: npm run test:browser
