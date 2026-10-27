@@ -1,13 +1,13 @@
 {
   "name": "Shop Inventory",
   "short_name": "Shop Inv",
+  "id": "./",
   "description": "Garage shop inventory audit. Mark what you have, get a triaged buy list.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#14181b",
-  "theme_color": "#14181b",
+  "background_color": "#111817",
+  "theme_color": "#111817",
   "icons": [
     {
       "src": "icons/icon-192.png",
