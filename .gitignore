@@ -8,3 +8,7 @@ node_modules/
 .env.*
 !.env.example
 .vercel/
+backups/
+*.dump
+playwright-report/
+test-results/

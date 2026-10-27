@@ -1,5 +1,7 @@
 # Shop Inventory: MVP Production Roadmap
 
+> **Current priorities:** see [Product review and stabilization roadmap — October 26, 2026](PRODUCT_REVIEW_2026-10-26.md). It assesses the deployed greenfield client, its reliability risks and lost workflows. The original assessment below is historical; feature lists here are not evidence of shipped greenfield functionality.
+
 **Repository:** `ryfo-agents/shop-inventory`  
 **Assessment date:** October 6, 2026  
 **Current production shape:** static PWA on Vercel with an optional Neon/Postgres sync backend

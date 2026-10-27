@@ -1,10 +1,5 @@
-const { clearSessionCookie } = require('../../lib/auth');
-
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'method not allowed' });
-    return;
-  }
-  clearSessionCookie(res);
-  res.status(200).json({ ok: true });
+// Retired shared-passphrase API. Never inspect credentials or access inventory.
+module.exports = function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(410).json({ error: 'legacy_api_disabled' });
 };

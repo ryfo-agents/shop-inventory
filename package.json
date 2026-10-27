@@ -2,18 +2,35 @@
   "name": "shop-inventory",
   "version": "1.0.0",
   "private": true,
-  "description": "Local-first garage shop inventory audit. Static frontend, no build step; optional Postgres-backed sync API under /api.",
+  "description": "Private cloud-first workshop audit; static deployed client with authenticated PostgreSQL API.",
   "scripts": {
     "start": "python3 -m http.server 8899",
-    "test": "node tests/smoke.js",
+    "test": "npm run check:syntax && npm run test:active && npm run test:unit && npm run test:ops",
+    "test:greenfield": "node tests/greenfield.js",
     "seed-db": "node scripts/seed-db.js",
     "migrate": "node scripts/migrate.js",
-    "backup-db": "node scripts/backup-db.js"
+    "backup-db": "node scripts/backup-db.js",
+    "test:active": "node tests/greenfield.js && node tests/audit-workflow.js",
+    "test:unit": "node --test tests/worker.test.js tests/mobile.test.js tests/backend-safety.test.js",
+    "test:database": "node scripts/test-database.js",
+    "test:browser:database": "node scripts/test-database.js --browser",
+    "test:legacy": "node tests/smoke.js",
+    "test:ops": "node --test tests/ops/*.test.js",
+    "test:browser": "playwright test tests/browser/journeys.spec.js",
+    "test:release": "npm test && npm run test:database && npm run test:browser && npm run test:browser:database && npm run test:legacy",
+    "check:syntax": "node scripts/check-syntax.js",
+    "qa:fixture": "node tests/browser/fixture-server.js"
   },
   "devDependencies": {
-    "jsdom": "^26.1.0"
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "jsdom": "^26.1.0",
+    "pg": "^8.23.1"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111817">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Shop Inventory — Audit clearly</title>
+  <meta name="description" content="A calm, focused inventory audit for your shop.">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="../icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=10">
+</head>
+<body data-shell-version="10">
+  <aside class="pwa-notices" aria-label="Connection and app updates">
+    <p id="pwa-network" class="pwa-notice" role="status" hidden></p>
+    <div id="pwa-update" class="pwa-notice" role="status" hidden>
+      Updated app ready. Finish saving, then reload.
+      <button id="pwa-reload" class="secondary-button" type="button">Reload app</button>
+    </div>
+  </aside>
+  <div id="app" class="app-shell">
+    <div class="app-loading" role="status">Loading your workspace…</div>
+  </div>
+  <div id="live" class="sr-only" aria-live="polite"></div>
+  <script>
+    (function () {
+      var network = document.getElementById('pwa-network');
+      function networkCue(reconnected) {
+        network.hidden = navigator.onLine && !reconnected;
+        network.textContent = navigator.onLine
+          ? 'Connection restored. Retry any unsaved changes.'
+          : 'Offline. Inventory changes require a connection.';
+      }
+      networkCue(false);
+      window.addEventListener('offline', function () { networkCue(false); });
+      window.addEventListener('online', function () { networkCue(true); });
+      if (!('serviceWorker' in navigator)) return;
+      var hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (hadController) document.getElementById('pwa-update').hidden = false;
+      });
+      document.getElementById('pwa-reload').addEventListener('click', function () { window.location.reload(); });
+      // Activate the privacy fix promptly, but never reload an in-progress audit automatically.
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function () {
+        if (!navigator.onLine) return;
+        network.hidden = false;
+        network.textContent = 'Offline shell unavailable. Online inventory still works.';
+      });
+    })();
+  </script>
+  <script src="app.js?v=10"></script>
+</body>
+</html>
