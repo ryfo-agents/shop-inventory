@@ -58,6 +58,23 @@ test('actual handlers against isolated PostgreSQL',async t=>{
     assert.equal((await run('auth/register',req('POST',body))).code,400);
    }
   });
+  for(const route of ['auth/register','auth/password-login']) {
+   await t.test(route+' rejects non-string emails with 400 and no account/session effects',async()=>{
+    async function effects(){
+     const rows=await Promise.all(['users','workspaces','memberships','sessions','audit_events'].map(table=>pg.query(`SELECT to_jsonb(t) AS row FROM ${table} t ORDER BY to_jsonb(t)::text`)));
+     return rows.map(result=>result.rows);
+    }
+    const before=await effects();
+    for(const email of [{toString:null},{},['registered@example.test'],42,true,null,undefined]) {
+     const body=JSON.stringify({email,password:'isolated-test-password',displayName:'Must not register'});
+     const res=await run(route,req('POST',body,{socket:{remoteAddress:crypto.randomUUID()}}));
+     assert.equal(res.code,400);
+     assert.equal(res.headers['Cache-Control'],'no-store');
+     assert.equal(res.headers['Set-Cookie'],undefined);
+     assert.deepEqual(await effects(),before);
+    }
+   });
+  }
   await t.test('unsupported snapshot mutation/methods have no bootstrap effects',async()=>{
    for(const method of ['PUT','POST','DELETE']){
     const res=await run('workspaces/[workspaceId]/state',req(method,{sections:[],subsections:[],items:[],marks:[]}));

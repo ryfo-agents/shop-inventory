@@ -12,7 +12,8 @@ test('isolated HTTP fixture authenticates, persists marks and rejects cross-acco
     const cookie = login.headers.get('set-cookie').split(';')[0];
     const headers = { cookie, 'Content-Type': 'application/json' };
     assert.equal((await fetch(url + '/api/workspaces/beta/state', { headers })).status, 403);
-    const response = await fetch(url + '/api/workspaces/alpha/marks/alpha-item', { method: 'PUT', headers, body: JSON.stringify({ status: 'missing' }) });
+    const initial = await (await fetch(url + '/api/workspaces/alpha/state', { headers })).json();
+    const response = await fetch(url + '/api/workspaces/alpha/marks/alpha-item', { method: 'PUT', headers, body: JSON.stringify({ version: initial.marks[0].version, status: 'missing' }) });
     assert.equal(response.status, 200);
     const state = await (await fetch(url + '/api/workspaces/alpha/state', { headers })).json();
     assert.equal(state.marks[0].status, 'missing');

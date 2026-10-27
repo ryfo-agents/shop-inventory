@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, greenfield-ux, 'work/**']
+    branches: [main, greenfield-ux, 'work/**', 'integration/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -20,6 +20,35 @@ jobs:
       - name: Legacy reference suite (not shipped-client acceptance)
         run: npm run test:legacy
       - run: git diff --check
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: backend_test
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U backend_test -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Actual PostgreSQL transactions, migrations and API handlers
+        run: npm run test:database
+        env:
+          BACKEND_TEST_DATABASE_URL: postgresql://backend_test@127.0.0.1:5432/postgres
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Real HTTPS sessions, production handlers, PostgreSQL and browser journeys
+        run: npm run test:browser:database
+        env:
+          BACKEND_TEST_DATABASE_URL: postgresql://backend_test@127.0.0.1:5432/postgres
   browser-fixture:
     runs-on: ubuntu-latest
     steps:

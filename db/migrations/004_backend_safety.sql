@@ -7,9 +7,19 @@ ALTER TABLE marks ADD COLUMN IF NOT EXISTS workspace_id text REFERENCES workspac
 
 -- Unowned legacy roots cannot safely be attributed to a real account. Preserve
 -- them in an archived quarantine (no memberships), never delete or guess owner.
-INSERT INTO users(id,email,display_name,disabled_at)
- SELECT '__legacy_quarantine_owner__','legacy-quarantine@invalid.local','Legacy quarantine',now()
- WHERE EXISTS (SELECT 1 FROM sections WHERE workspace_id IS NULL);
+DO $$
+BEGIN
+ IF EXISTS (SELECT 1 FROM sections WHERE workspace_id IS NULL) THEN
+  LOOP
+   -- The unique index checks every generated candidate, including a concurrent
+   -- collision. Retry with a fresh address; never reuse or modify a real user.
+   INSERT INTO users(id,email,display_name,disabled_at)
+    VALUES ('__legacy_quarantine_owner__','legacy-quarantine-'||gen_random_uuid()::text||'@invalid.local','Legacy quarantine',now())
+    ON CONFLICT (email) DO NOTHING;
+   EXIT WHEN FOUND;
+  END LOOP;
+ END IF;
+END $$;
 INSERT INTO workspaces(id,name,owner_id,archived_at)
  SELECT '__legacy_quarantine__','Unassigned legacy inventory','__legacy_quarantine_owner__',now()
  WHERE EXISTS (SELECT 1 FROM sections WHERE workspace_id IS NULL);

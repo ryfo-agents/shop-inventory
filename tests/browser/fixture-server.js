@@ -3,14 +3,17 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+// Pure production validation only: this fixture never calls auth/db functions.
+const { validateMark } = require('../../lib/workspace-api');
 const root = path.resolve(__dirname, '../..');
 function stateFor(account) {
   const name = account === 'alpha' ? 'Alpha' : 'Beta';
   return {
+    revision: 0,
     sections: [{ id: account + '-section', num: 1, title: name + ' tools', sort_order: 0 }],
     subsections: [{ id: account + '-sub', section_id: account + '-section', num: '1.1', title: 'Hand tools', sort_order: 0 }],
     items: [{ id: account + '-item', subsection_id: account + '-sub', label: name + ' wrench', store: 'General', qty: false, sort_order: 0 }],
-    marks: [{ item_id: account + '-item', status: 'unknown', q: 3, sp: 'Metric', n: name + ' private fixture note', c: 12.5, revision: 0, updated_at: new Date(0).toISOString() }]
+    marks: [{ item_id: account + '-item', status: 'unknown', q: 3, sp: 'Metric', n: name + ' private fixture note', c: 12.5, version: 1, updated_at: new Date(0).toISOString() }]
   };
 }
 async function startFixture(port = 0) {
@@ -50,11 +53,13 @@ async function startFixture(port = 0) {
       const state = states[account];
       if (match[2] === 'state' && req.method === 'GET') return send(200, state);
       if (match[3] && ['PUT', 'PATCH'].includes(req.method)) {
+        try { validateMark(body); } catch (error) { return send(error.message === 'precondition_required' ? 428 : 400, { error: error.message }); }
         const mark = state.marks.find(m => m.item_id === match[3]);
-        if (!mark) return send(404, {});
-        if (body.revision != null && body.revision !== mark.revision) return send(409, { error: 'stale_revision', mark });
+        if (!mark) return send(404, { error: 'item_not_found' });
+        if (body.version !== mark.version) return send(409, { error: 'revision_conflict' });
         for (const field of ['status','q','sp','n','c']) if (Object.hasOwn(body, field)) mark[field] = body[field];
-        mark.revision++; mark.updated_at = new Date().toISOString(); return send(200, { mark });
+        mark.version++; state.revision++; mark.updated_at = new Date().toISOString();
+        return send(200, { mark, revision: state.revision });
       }
       send(405, { error: 'method_not_allowed' });
     } catch (_) { send(400, { error: 'invalid_fixture_request' }); }

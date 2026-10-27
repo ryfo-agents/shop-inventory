@@ -22,7 +22,11 @@ async function axe(page) {
   expect(results.violations.filter(v => ['serious','critical'].includes(v.impact)).map(v => ({ id: v.id, impact: v.impact, targets: v.nodes.map(n => n.target) }))).toEqual([]);
 }
 
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+test.beforeEach(async ({ page, serviceWorkers }) => {
+  await page.goto('/');
+  // Do not let privacy/persistence regressions pass before SW activation.
+  if (serviceWorkers !== 'block') await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+});
 
 test('root deployed client: sign-in, audit and reload persistence', async ({ page }) => {
   await signIn(page);
@@ -43,6 +47,8 @@ test('same browser account switch cannot show previous account private inventory
   await expect(page.getByText('Alpha wrench', { exact: true })).toBeVisible();
   await page.goto('/#/settings');
   await page.getByRole('button', { name: 'Sign out', exact: true }).last().click();
+  // Account-switch coverage starts after confirmed logout, not the transient form.
+  await expect(page.getByRole('alert')).toHaveText('You are signed out.');
   await signIn(page, 'beta');
   await section(page);
   await expect(page.getByText('Beta wrench', { exact: true })).toBeVisible();
@@ -66,6 +72,10 @@ test.describe('network faults (SW blocked so interception is deterministic)', ()
 test('delayed rapid taps keep latest intent after acknowledgement and reload', async ({ page }) => {
   await signIn(page); await section(page);
   let first = true;
+  const acknowledgments = [];
+  page.on('response', async response => {
+    if (/\/marks\//.test(response.url()) && response.ok()) acknowledgments.push(await response.json());
+  });
   await page.route('**/api/workspaces/*/marks/*', async route => {
     if (first) { first = false; await new Promise(resolve => setTimeout(resolve, 700)); }
     await route.continue();
@@ -76,7 +86,9 @@ test('delayed rapid taps keep latest intent after acknowledgement and reload', a
   const intended = cycle[(cycle.indexOf(start) + 2) % cycle.length];
   await button.click(); await button.click();
   await expect(button).toHaveAttribute('data-status', intended);
-  await page.waitForTimeout(1100);
+  await expect.poll(() => acknowledgments.length).toBe(2);
+  expect(acknowledgments.map(result => result.mark.version)).toEqual([2, 3]);
+  expect(acknowledgments.map(result => result.revision)).toEqual([1, 2]);
   await expect(button).toHaveAttribute('data-status', intended);
   await expect(page.locator('.item-status').first()).toHaveText('Saved');
   await page.reload();
@@ -90,7 +102,8 @@ test('failed write is announced without claiming saved and recovery works', asyn
   await page.route('**/api/workspaces/*/marks/*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"fixture_unavailable"}' }));
   await button.click();
   await expect(page.locator('#live')).toContainText(/could not save|not saved|failed/i);
-  await expect(page.locator('.item-status').first()).not.toHaveText('Saving…');
+  await expect(page.locator('.item-status').first()).toContainText(/not saved/i);
+  await expect(page.locator('.item-status').first()).not.toHaveText('Saved');
   await page.unroute('**/api/workspaces/*/marks/*');
   // Reload is a conservative recovery path; no assumed retry-control contract.
   await page.reload();
@@ -99,12 +112,25 @@ test('failed write is announced without claiming saved and recovery works', asyn
   await expect(page.locator('.item-status').first()).toHaveText('Saved');
 });
 
-test('offline write fails visibly and session expiry returns to sign-in', async ({ page, context }) => {
+test('offline inventory is visibly read-only without writes or replay; expired session returns to sign-in', async ({ page, context }) => {
   await signIn(page); await section(page);
+  const button = page.locator('.status-button').first();
+  const before = await button.getAttribute('data-status');
+  const writes = [];
+  page.on('request', request => { if (/\/marks\//.test(request.url())) writes.push(request); });
   await context.setOffline(true);
-  await page.locator('.status-button').first().click();
-  await expect(page.locator('#live')).toContainText(/could not save|not saved|offline|failed/i);
+  // The supported contract now prevents offline edits, rather than attempting a failed write.
+  await expect(button).toBeDisabled();
+  await expect(page.locator('#write-summary')).toContainText(/offline.*read-only/i);
+  await expect(page.locator('#pwa-network')).toBeVisible();
+  await expect(page.locator('#pwa-network')).toContainText(/offline/i);
+  await expect(button).toHaveAttribute('data-status', before);
   await context.setOffline(false);
+  await expect(button).toBeEnabled();
+  await expect(page.locator('#pwa-network')).toContainText(/restored/i);
+  await page.reload();
+  await expect(page.locator('.status-button').first()).toHaveAttribute('data-status', before);
+  expect(writes).toEqual([]);
   await context.clearCookies();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();

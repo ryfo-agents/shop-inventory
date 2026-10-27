@@ -4,8 +4,10 @@
 
 No production database operation or deployment is authorized by this runbook. Obtain
 separate approval for any production action. Never print source URLs, credentials,
-session tokens, private row contents, or archives. `npm test` is mocked-client and
-fixture evidence; Playwright adds real browser execution, not real API/DB integrity.
+session tokens, private row contents, or archives. `npm test` covers active-client,
+unit and fixture behavior. `npm run test:database` requires an explicitly opted-in
+disposable loopback PostgreSQL server and exercises actual SQL and API handlers
+through a transport adapter. Fixture-browser journeys do not prove live Neon behavior.
 No backup schedule, alert service, recovery email provider, distributed limiter, or
 production branch protection is claimed configured.
 
@@ -92,10 +94,15 @@ and compare logical invariants. Delete the disposable instance and local archive
 only after recording evidence and confirming correct targets. No production restore,
 rollback drill or database acceptance has been performed by this workstream.
 
-Local environment blocker: PostgreSQL tools were not present during this workstream.
-Backup subprocess contract/failure cleanup and restore target rejection were tested
-using explicit fake executables; this is **not a PostgreSQL restore drill**. Install
-approved compatible clients/server and complete the above gate before release.
+Integration evidence (October 26, 2026): PostgreSQL 18.4 clients were built from
+SHA-256-verified official source in the agent scratch area. The actual backup and
+restore commands ran against two random disposable loopback databases: one item,
+one mark with quantity/spec/note/cost, revision 2 and 95 public constraints. A fresh
+`shop_state` read matched the source snapshot exactly; archive mode was 0600. The
+parent reran this drill successfully and verified cleanup. This proves the local
+archive/restore path, not production recovery, offsite retention, or live Neon transport.
+No production credentials or data were used; the source/target databases and archive
+were removed. Compatible PostgreSQL client tools remain an operator prerequisite.
 
 ## Private access and account recovery policy
 

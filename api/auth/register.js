@@ -7,6 +7,7 @@ module.exports = async function handler(req,res) {
   if (!allow(clientKey(req,'register'),10,15*60*1000)) return res.status(429).json({ error:'too_many_requests' });
   let input;
   try { input=parseBody(req); } catch (_) { return res.status(400).json({error:'invalid_body'}); }
+  if (typeof input.email !== 'string') return res.status(400).json({error:'email_and_password_required'});
   const email=normalizeEmail(input.email);
   const password=typeof input.password === 'string' ? input.password : '';
   const displayName=typeof input.displayName === 'string' ? input.displayName.trim().slice(0,120) : '';

@@ -195,6 +195,28 @@ test('upgrade quarantines unowned legacy roots and inherits parent ownership wit
   await assert.rejects(pg.exec("INSERT INTO marks(item_id,workspace_id,q) VALUES ('i2','w2',-1)"));
  } finally {await pg.close();}
 });
+test('upgrade quarantine never reuses or disables an existing legacy-quarantine email account', async () => {
+ const pg=new TestDatabase();
+ try {
+  await oldDatabase(pg); await fixture(pg);
+  await pg.exec("UPDATE users SET email='legacy-quarantine@invalid.local',display_name='Real account',password_hash='preserve-password' WHERE id='u1'; INSERT INTO sections(id,num,title,sort_order) VALUES ('orphan',9,'legacy',0)");
+  const accountBefore=(await pg.query("SELECT * FROM users WHERE id='u1'")).rows[0];
+  const membershipsBefore=(await pg.query("SELECT * FROM memberships WHERE user_id='u1'")).rows;
+  await migrate(adapter(pg),{log:()=>{}});
+  await migrate(adapter(pg),{log:()=>{}});
+  assert.deepEqual((await pg.query("SELECT * FROM users WHERE id='u1'")).rows[0],accountBefore);
+  assert.deepEqual((await pg.query("SELECT * FROM memberships WHERE user_id='u1'")).rows,membershipsBefore);
+  const quarantine=(await pg.query("SELECT w.id,w.archived_at,u.id owner_id,u.email,u.disabled_at,u.password_hash FROM sections s JOIN workspaces w ON w.id=s.workspace_id JOIN users u ON u.id=w.owner_id WHERE s.id='orphan'")).rows[0];
+  assert.notEqual(quarantine.owner_id,'u1');
+  assert.notEqual(quarantine.email,accountBefore.email);
+  assert.match(quarantine.email,/@invalid\.local$/);
+  assert.ok(quarantine.disabled_at); assert.ok(quarantine.archived_at);
+  assert.equal(quarantine.password_hash,null);
+  assert.equal((await pg.query('SELECT count(*)::int n FROM memberships WHERE workspace_id=$1 OR user_id=$2',[quarantine.id,quarantine.owner_id])).rows[0].n,0);
+  assert.equal((await pg.query('SELECT count(*)::int n FROM users')).rows[0].n,3);
+  assert.equal((await pg.query("SELECT workspace_id FROM sections WHERE id='s1'")).rows[0].workspace_id,'w1');
+ } finally {await pg.close();}
+});
 test('inconsistent upgrade fails atomically without migration record or backfill', async () => {
  const pg=new TestDatabase();
  try {

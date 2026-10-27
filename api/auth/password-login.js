@@ -9,6 +9,7 @@ module.exports = async function handler(req, res) {
   if (!allow(clientKey(req, 'login'), 10, 15 * 60 * 1000)) return res.status(429).json({ error: 'too_many_requests' });
   let input;
   try { input = parseBody(req); } catch (_) { return res.status(400).json({error:'invalid_body'}); }
+  if (typeof input.email !== 'string') return res.status(400).json({error:'invalid_credentials'});
   const email = normalizeEmail(input.email);
   const password = typeof input.password === 'string' ? input.password : '';
   if (email.length > 254 || password.length > 1024) return res.status(400).json({error:'invalid_credentials'});
